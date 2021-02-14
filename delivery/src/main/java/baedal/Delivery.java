@@ -22,8 +22,7 @@ public class Delivery {
     public void onPostPersist(){
         System.out.println("##### listener Delivery onPostPersist : " + this.toJson());
 
-        // status is null when "started" only        
-        if ("".equals(this.getStatus())) {
+        if ("started".equals(this.getStatus())) {
             DeliveryStarted deliveryStarted = new DeliveryStarted();
             BeanUtils.copyProperties(this, deliveryStarted);
             deliveryStarted.publishAfterCommit();
@@ -39,6 +38,7 @@ public class Delivery {
             BeanUtils.copyProperties(this, deliveryCompleted);
             deliveryCompleted.publishAfterCommit();
         }
+        // cancel은 req/res이므로 불필요
     }
 
     /*

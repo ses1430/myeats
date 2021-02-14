@@ -1,8 +1,6 @@
 package baedal;
 
 import javax.persistence.*;
-import org.springframework.beans.BeanUtils;
-import java.util.List;
 
 @Entity
 @Table(name="Menu_table")
@@ -12,7 +10,6 @@ public class Menu {
     @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
     private String menuNm;
-
 
     public Long getId() {
         return id;
@@ -28,8 +25,4 @@ public class Menu {
     public void setMenuNm(String menuNm) {
         this.menuNm = menuNm;
     }
-
-
-
-
 }

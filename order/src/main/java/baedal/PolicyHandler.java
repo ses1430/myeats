@@ -20,6 +20,7 @@ public class PolicyHandler{
     public void wheneverDeliveryStarted_UpdateStatus(@Payload DeliveryStarted deliveryStarted){
         if(deliveryStarted.isMe()){
             System.out.println("##### listener wheneverDeliveryStarted_UpdateStatus : " + deliveryStarted.toJson());
+
             Order order = orderRepository.findById(deliveryStarted.getOrderId()).get();
             order.setDeliveryId(deliveryStarted.getId());
             order.setDeliveryStatus(deliveryStarted.getStatus());
@@ -31,6 +32,7 @@ public class PolicyHandler{
     public void wheneverDeliveryCompleted_UpdateStatus(@Payload DeliveryCompleted deliveryCompleted){
         if(deliveryCompleted.isMe()){
             System.out.println("##### listener wheneverDeliveryCompleted_UpdateStatus : " + deliveryCompleted.toJson());
+            
             Order order = orderRepository.findById(deliveryCompleted.getOrderId()).get();            
             order.setDeliveryStatus(deliveryCompleted.getStatus());
             orderRepository.save(order);
@@ -51,5 +53,4 @@ public class PolicyHandler{
             System.out.println("##### listener  : " + menuDeleted.toJson());
         }
     }
-
 }
