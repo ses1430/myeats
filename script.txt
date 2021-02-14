@@ -1,3 +1,8 @@
+# 메뉴등록
+http POST http://localhost:8083/menus menuNm=Juice
+http POST http://localhost:8083/menus menuNm=Gimbab
+http POST http://localhost:8083/menus menuNm=Egg
+
 # 주문등록
 http POST http://localhost:8081/orders menuId=1 qty=1
 http POST http://localhost:8081/orders menuId=2 qty=2

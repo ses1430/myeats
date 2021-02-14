@@ -4,6 +4,7 @@ public class OrderCancelled extends AbstractEvent {
 
     private Long id;
     private Long menuId;
+    private String menuNm;
     private Long qty;
     private String status;
     private String deliveryStatus;
@@ -27,6 +28,15 @@ public class OrderCancelled extends AbstractEvent {
     public void setMenuId(Long menuId) {
         this.menuId = menuId;
     }
+
+    public String getMenuNm() {
+        return menuNm;
+    }
+
+    public void setMenuNm(String menuNm) {
+        this.menuNm = menuNm;
+    }
+
     public Long getQty() {
         return qty;
     }

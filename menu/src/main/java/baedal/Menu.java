@@ -18,13 +18,13 @@ public class Menu {
         MenuCreated menuCreated = new MenuCreated();
         BeanUtils.copyProperties(this, menuCreated);
         menuCreated.publishAfterCommit();
+    }
 
-
+    @PostRemove
+    public void onPostRemove(){
         MenuDeleted menuDeleted = new MenuDeleted();
         BeanUtils.copyProperties(this, menuDeleted);
         menuDeleted.publishAfterCommit();
-
-
     }
 
 
