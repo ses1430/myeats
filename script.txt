@@ -1,16 +1,16 @@
 # 메뉴등록
-http POST http://localhost:8088/menus menuNm=Juice
-http POST http://localhost:8088/menus menuNm=Gimbab
-http POST http://localhost:8088/menus menuNm=Egg
+http http://a9847445074524a13bc47b4bc4eef80c-1049604213.ap-northeast-2.elb.amazonaws.com:8080/menus menuNm=Juice
+http http://a9847445074524a13bc47b4bc4eef80c-1049604213.ap-northeast-2.elb.amazonaws.com:8080/menus menuNm=Gimbab
+http http://a9847445074524a13bc47b4bc4eef80c-1049604213.ap-northeast-2.elb.amazonaws.com:8080/menus menuNm=Egg
 
 # 주문등록
-http POST http://localhost:8088/orders menuId=1 menuNm=Juice qty=1
-http POST http://localhost:8088/orders menuId=2 menuNm=Gimbab qty=2
-http POST http://localhost:8088/orders menuId=3 menuNm=Egg qty=3
+http http://a19481805eeea4b0782b8aaace0e57e0-1738574765.ap-northeast-2.elb.amazonaws.com:8080/orders menuId=1 menuNm=Juice qty=1
+http http://a9847445074524a13bc47b4bc4eef80c-1049604213.ap-northeast-2.elb.amazonaws.com:8080/orders menuId=2 menuNm=Gimbab qty=2
+http http://a9847445074524a13bc47b4bc4eef80c-1049604213.ap-northeast-2.elb.amazonaws.com:8080/orders menuId=3 menuNm=Egg qty=3
 
 # 배달완료 / 주문취소
-http PATCH http://localhost:8088/deliveries/1 status=complete
-http PATCH http://localhost:8088/orders/3 status=cancel
+http PATCH http://a19481805eeea4b0782b8aaace0e57e0-1738574765.ap-northeast-2.elb.amazonaws.com:8080/deliveries/1 status=complete
+http PATCH http://a19481805eeea4b0782b8aaace0e57e0-1738574765.ap-northeast-2.elb.amazonaws.com:8080/orders/4 status=cancel
 
 # 조회
 http http://localhost:8088/orders
@@ -22,3 +22,67 @@ http http://localhost:8088/mypages
 zookeeper-server-start.bat ..\..\config\zookeeper.properties
 kafka-server-start.bat ..\..\config\server.properties
 kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic baedal
+
+# aws
+region : ap-northeast-2
+account id : 631417180704
+cluster name : ses1430-eks
+
+# AWS 클러스터 생성
+eksctl create cluster --name ses1430-eks --version 1.17 --nodegroup-name standard-workers --node-type t3.medium --nodes 3 --nodes-min 1 --nodes-max 3
+
+# AWS 클러스터 토큰 가져오기
+aws eks --region ap-northeast-2 update-kubeconfig --name ses1430-eks
+
+# AWS 컨테이너 레지스트리에 이미지 리파지토리 생성
+aws ecr create-repository --repository-name order    --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name delivery --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name menu     --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name mypage   --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name gateway  --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+
+# AWS 컨테이너 레지스트리 로그인
+aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com
+
+# 오류(unknown flag: --password-stdin) 발생 시,
+docker login --username AWS -p $(aws ecr get-login-password --region ap-northeast-2) 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/
+
+# maven 패키 생성 & docker 이미지 생성 & push
+mvn package
+docker build -t 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/order:v1 .
+docker push 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/order:v1
+
+mvn package
+docker build -t 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/delivery:v1 .
+docker push 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/delivery:v1
+
+mvn package
+docker build -t 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/menu:v1 .
+docker push 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/menu:v1
+
+mvn package
+docker build -t 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/mypage:v1 .
+docker push 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/mypage:v1
+
+mvn package
+docker build -t 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/gateway:v1 .
+docker push 631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/gateway:v1
+
+# docker 이미지로 Deployment 생성
+kubectl create deploy order    --image=631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/order:v1
+kubectl create deploy delivery --image=631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/delivery:v1
+kubectl create deploy menu     --image=631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/menu:v1
+kubectl create deploy mypage   --image=631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/mypage:v1
+kubectl create deploy gateway  --image=631417180704.dkr.ecr.ap-northeast-2.amazonaws.com/gateway:v1
+
+# expose
+kubectl expose deploy order    --type=ClusterIP --port=8080
+kubectl expose deploy delivery --type=ClusterIP --port=8080
+kubectl expose deploy menu     --type=ClusterIP --port=8080
+kubectl expose deploy mypage   --type=ClusterIP --port=8080
+kubectl expose deploy gateway  --type=LoadBalancer --port=8080
+
+# 한번에 죽이기
+kubectl delete po,svc,deploy --all
+
+helm repo add incubator https://charts.helm.sh/incubator

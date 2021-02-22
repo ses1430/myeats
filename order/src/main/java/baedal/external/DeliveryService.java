@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-@FeignClient(name="delivery", url="http://localhost:8082")
+@FeignClient(name="delivery", url="http://delivery:8080")
 public interface DeliveryService {
 
     @RequestMapping(method= RequestMethod.PUT, path="/deliveries/{id}")
