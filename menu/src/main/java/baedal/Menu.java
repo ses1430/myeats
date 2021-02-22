@@ -9,7 +9,7 @@ import java.util.List;
 public class Menu {
 
     @Id
-    @GeneratedValue(strategy=GenerationType.AUTO)
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
     private String menuNm;
 
@@ -27,7 +27,6 @@ public class Menu {
         menuDeleted.publishAfterCommit();
     }
 
-
     public Long getId() {
         return id;
     }
@@ -42,8 +41,4 @@ public class Menu {
     public void setMenuNm(String menuNm) {
         this.menuNm = menuNm;
     }
-
-
-
-
 }

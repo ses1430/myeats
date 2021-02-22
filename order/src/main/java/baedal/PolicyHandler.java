@@ -6,7 +6,6 @@ import org.springframework.cloud.stream.annotation.StreamListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 public class PolicyHandler{
@@ -21,6 +20,7 @@ public class PolicyHandler{
     @Autowired
     MenuRepository menuRepository;
 
+    /*
     @StreamListener(KafkaProcessor.INPUT)
     public void wheneverOrdered_UpdateMenuNm(@Payload Ordered ordered) {
         if(ordered.isMe()) {
@@ -32,6 +32,7 @@ public class PolicyHandler{
             orderRepository.save(order);
         }
     }
+    */
 
     @StreamListener(KafkaProcessor.INPUT)
     public void wheneverDeliveryStarted_UpdateStatus(@Payload DeliveryStarted deliveryStarted){
