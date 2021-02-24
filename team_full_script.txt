@@ -1,0 +1,184 @@
+ap-northeast-2
+496278789073
+
+# helm install
+curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 > get_helm.sh
+chmod 700 get_helm.sh
+./get_helm.sh
+
+# kafka install
+kubectl create sa tiller --namespace kube-system  # helm 의 설치관리자를 위한 시스템 사용자 생성
+kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
+
+helm repo add incubator https://charts.helm.sh/incubator                                    
+helm repo list
+helm repo update
+kubectl create ns kafka
+helm install my-kafka --namespace kafka incubator/kafka
+
+# eks cluster create
+eksctl create cluster --name SKTeam05-eks --version 1.17 --nodegroup-name standard-workers --node-type t3.medium --nodes 2 --nodes-min 1 --nodes-max 4
+aws eks --region ap-northeast-2 update-kubeconfig --name SKTeam05-eks
+
+
+aws ecr create-repository --repository-name team05-order --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name team05-delivery --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name team05-menu --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name team05-mypage --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+aws ecr create-repository --repository-name team05-gateway --image-scanning-configuration scanOnPush=true --region ap-northeast-2
+
+docker login --username AWS -p $(aws ecr get-login-password --region ap-northeast-2) 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/
+#aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com
+
+docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-order:v1 .
+docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-order:v1
+
+docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-delivery:v1 .
+docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-delivery:v1
+
+docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-menu:v1 .
+docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-menu:v1
+
+docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-mypage:v1 .
+docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-mypage:v1
+
+docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-gateway:v1 .
+docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-gateway:v1
+
+kubectl create deploy order --image=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-order:v1
+kubectl create deploy delivery --image=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-delivery:v1
+kubectl create deploy menu --image=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-menu:v1
+kubectl create deploy mypage --image=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-mypage:v1
+kubectl create deploy gateway --image=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/team05-gateway:v1
+
+kubectl apply -f order-deploy.yaml
+kubectl apply -f delivery-deploy.yaml
+kubectl apply -f menu-efs-deploy.yaml
+kubectl apply -f mypage-deploy.yaml
+kubectl apply -f gateway-deploy.yaml
+
+kubectl expose deploy order --type=ClusterIP --port=8080
+kubectl expose deploy delivery --type=ClusterIP --port=8080
+kubectl expose deploy menu --type=ClusterIP --port=8080
+kubectl expose deploy mypage --type=ClusterIP --port=8080
+kubectl expose deploy gateway --type=LoadBalancer --port=8080
+
+kubectl run siege --image=ghcr.io/gkedu/siege-nginx
+kubectl exec -it siege-5d5bc45d9c-77vtm -- /bin/bash
+kubectl exec -it siege-5d5bc45d9c-pvdbh -n test -- /bin/bash
+
+kubectl -n kafka exec -ti my-kafka-0 -- /usr/bin/kafka-console-consumer --bootstrap-server my-kafka:9092 --topic baedal
+
+curl http://order:8080
+http http://order:8080/orders menuId="1001" qty="5"
+
+http http://order:8080/orders menuId="1001" menuNm="Kimbab" qty="5"
+siege -c10 -t10S -v --content-type "application/json" 'http://order:8080/orders/1 PATCH {"status": "cancel"}'
+siege -c225 -t10S -v --content-type "application/json" 'http://order:8080/orders/1 PATCH {"status": "cancel"}'
+
+siege -c10 -t10S -v --content-type "application/json" 'http://order:8080/orders POST {"menuId": "1001", "qty":5}'
+siege -c30 -t10S -v --content-type "application/json" 'http://order:8080/orders POST {"menuId": "1001", "qty":5}'
+siege -c60 -t10S -v --content-type "application/json" 'http://order:8080/orders POST {"menuId": "1001", "qty":5}'
+siege -c120 -t10S -v --content-type "application/json" 'http://order:8080/orders POST {"menuId": "1001", "qty":5}'
+siege -c220 -t10S -v --content-type "application/json" 'http://order:8080/orders POST {"menuId": "1001", "qty":5}'
+
+
+---------------
+EFS
+---------------
+
+
+
+
+kubectl apply -k "github.com/kubernetes-sigs/aws-efs-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
+aws eks describe-cluster --name SKTeam05-eks --query "cluster.resourcesVpcConfig.vpcId" --output text
+-- vpc-03be0ce2626a6f392
+aws ec2 describe-vpcs --vpc-ids vpc-03be0ce2626a6f392 --query "Vpcs[].CidrBlock" --output text
+-- 192.168.0.0/16
+
+aws ec2 create-security-group --description efs-test-sg --group-name efs-sg --vpc-id vpc-03be0ce2626a6f392
+-- sg-011b9d857ef4c394b
+
+aws ec2 authorize-security-group-ingress --group-id sg-011b9d857ef4c394b  --protocol tcp --port 2049 --cidr 192.168.0.0/16
+aws efs create-file-system --creation-token eks-efs
+
+{
+    "OwnerId": "496278789073",
+    "CreationToken": "eks-efs",
+    "FileSystemId": "fs-1308c673",
+    "FileSystemArn": "arn:aws:elasticfilesystem:ap-northeast-2:496278789073:file-system/fs-1308c673",
+    "CreationTime": "2021-02-23T09:14:05+09:00",
+    "LifeCycleState": "creating",
+    "NumberOfMountTargets": 0,
+    "SizeInBytes": {
+        "Value": 0,
+        "ValueInIA": 0,
+        "ValueInStandard": 0
+    },
+    "PerformanceMode": "generalPurpose",
+    "Encrypted": false,
+    "ThroughputMode": "bursting",
+    "Tags": []
+}
+
+
+aws efs create-mount-target --file-system-id fs-1308c673 --subnet-id subnet-0ed61145fdc7ace8a --security-group sg-011b9d857ef4c394b
+aws efs create-mount-target --file-system-id fs-1308c673 --subnet-id subnet-0439d7d17a3d1e26d --security-group sg-011b9d857ef4c394b
+
+{
+    "OwnerId": "496278789073",
+    "MountTargetId": "fsmt-932db7f2",
+    "FileSystemId": "fs-1308c673",
+    "SubnetId": "subnet-0ed61145fdc7ace8a",
+    "LifeCycleState": "creating",
+    "IpAddress": "192.168.94.190",
+    "NetworkInterfaceId": "eni-09f37c89339fcf71d",
+    "AvailabilityZoneId": "apne2-az2",
+    "AvailabilityZoneName": "ap-northeast-2b",
+    "VpcId": "vpc-03be0ce2626a6f392"
+}
+{
+    "OwnerId": "496278789073",
+    "MountTargetId": "fsmt-922db7f3",
+    "FileSystemId": "fs-1308c673",
+    "SubnetId": "subnet-0439d7d17a3d1e26d",
+    "LifeCycleState": "creating",
+    "IpAddress": "192.168.15.190",
+    "NetworkInterfaceId": "eni-0c9c639d7852d2f47",
+    "AvailabilityZoneId": "apne2-az3",
+    "AvailabilityZoneName": "ap-northeast-2c",
+    "VpcId": "vpc-03be0ce2626a6f392"
+}
+
+
+git clone https://github.com/kubernetes-sigs/aws-efs-csi-driver.git
+cd aws-efs-csi-driver/examples/kubernetes/multiple_pods/
+vi specs/pv.yaml
+kubectl apply -f storageclass.yaml
+kubectl apply -f claim.yaml
+kubectl apply -f pv.yaml
+
+
+
+-------------
+cloud watch
+-------------
+kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cloudwatch-namespace.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-serviceaccount.yaml
+
+curl -O https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-configmap.yaml
+
+vi cwagent-configmap.yaml
+kubectl apply -f cwagent-configmap.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-daemonset.yaml
+
+curl -O  https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/cwagent/cwagent-daemonset.yaml
+
+vi cwagent-daemonset.yaml
+kubectl apply -f cwagent-daemonset.yaml
+
+kubectl get pods -n amazon-cloudwatch
+
+
